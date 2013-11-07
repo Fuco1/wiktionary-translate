@@ -7,6 +7,7 @@
 ;; Keywords: convenience
 ;; Version: 0.1
 ;; Created: 7th November 2013
+;; Package-requires: ((dash "2.3.0"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -29,6 +30,8 @@
 ;; It's very much a work in progress, please heed that warning.
 
 ;;; Code:
+
+(require 'dash)
 
 ;;;_* Start
 (defconst wd-base-query
