@@ -40,6 +40,8 @@
 
 ;;;_* UI
 
+;; TODO: refactor these two methods into something nicer
+
 ;;;###autoload
 (defun wd-show-translation (word)
   (interactive (list (if current-prefix-arg
@@ -124,7 +126,8 @@
     ;; try to run the decapitalized version of the word
     (if (not (equal (downcase word) word))
         (wd-process-word (downcase word))
-      (message "Failed to retrieve the page"))))
+      (message "Failed to retrieve the page")
+      nil)))
 
 (defun wd-extract-language (language &optional buffer)
   (with-current-buffer (or buffer (current-buffer))
@@ -196,6 +199,7 @@
       (forward-line 1)
       ;; first test if the page contains "conjugation" info
       (let (start)
+        ;; TODO: refactor the "cond/setq start/goto start" pattern into a macro
         (cond
          ;; # {{conjugation of|togliere||1|s|pres|ind|lang=it}} ''tolgo''
          ((setq start (save-excursion (search-forward "conjugation of|" nil t)))
