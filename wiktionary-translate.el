@@ -132,11 +132,21 @@
     (beginning-of-line)
     (let ((text "") (i 1) done)
       (while (not done)
-        (forward-char 2)
-        (setq text (concat text (int-to-string i) ". " (buffer-substring-no-properties (point) (line-end-position)) "\n"))
-        (forward-line 1)
-        (setq done (not (looking-at "#")))
-        (setq i (1+ i)))
+        ;; process a sub-header
+        (if (looking-at "#\\(:+\\)")
+            (let ((depth (length (match-string 0))))
+              (forward-char depth)
+              (setq text (concat
+                          text
+                          (make-string (* 4 (1- depth)) ?\ )
+                          (buffer-substring-no-properties (point) (line-end-position)) "\n"))
+              (forward-line 1)
+              (setq done (not (looking-at "#"))))
+          (forward-char 2)
+          (setq text (concat text (int-to-string i) ". " (buffer-substring-no-properties (point) (line-end-position)) "\n"))
+          (forward-line 1)
+          (setq done (not (looking-at "#")))
+          (setq i (1+ i))))
       text)))
 
 ;;;_** Verbs
@@ -197,6 +207,11 @@
          ((setq start (save-excursion (search-forward "past participle of|" nil t)))
           (goto-char start)
           (let ((parent (buffer-substring-no-properties start (1- (search-forward "|" nil t)))))
+            (wd-process-word parent (list :verb "past participle of "))))
+         ;; # [[past participle]] of [[andare]]
+         ((setq start (save-excursion (search-forward "[[past participle]] of" nil t)))
+          (goto-char start)
+          (let ((parent (buffer-substring-no-properties (search-forward "[[") (- (search-forward "]]") 2))))
             (wd-process-word parent (list :verb "past participle of "))))
          ;; feminine form of pp {{feminine of|subordinare|lang=it}}
          ((setq start (save-excursion (search-forward "feminine of|" nil t)))
