@@ -38,19 +38,22 @@
   "http://en.wiktionary.org/w/api.php?action=query&format=xml&prop=revisions&rvprop=content&titles="
   "Append the word to this query to retrieve the data.")
 
+(defun wd-interactive-translate-spec ()
+  "Interactive spec for interactive translation functions."
+  (list (if current-prefix-arg
+            (read-from-minibuffer "Word: " (or (word-at-point) ""))
+          (if (use-region-p)
+              (buffer-substring-no-properties (region-beginning)
+                                              (region-end))
+            (or (word-at-point)
+                (read-from-minibuffer "Word: "))))))
 ;;;_* UI
 
 ;; TODO: refactor these two methods into something nicer
 
 ;;;###autoload
 (defun wd-show-translation (word)
-  (interactive (list (if current-prefix-arg
-                         (read-from-minibuffer "Word: " (or (word-at-point) ""))
-                       (if (use-region-p)
-                           (buffer-substring-no-properties (region-beginning)
-                                                           (region-end))
-                         (or (word-at-point)
-                             (read-from-minibuffer "Word: "))))))
+  (interactive (wd-interactive-translate-spec))
   (-if-let (meaning (wd-translate-word word))
       (pop-to-buffer
        (with-current-buffer (get-buffer-create "*Wiktionary*")
@@ -65,13 +68,7 @@
     (message "Failed to find a translation")))
 
 (defun wd-show-raw-translation (word)
-  (interactive (list (if current-prefix-arg
-                         (read-from-minibuffer "Word: " (or (word-at-point) ""))
-                       (if (use-region-p)
-                           (buffer-substring-no-properties (region-beginning)
-                                                           (region-end))
-                         (or (word-at-point)
-                             (read-from-minibuffer "Word: "))))))
+  (interactive (wd-interactive-translate-spec))
   (-if-let (raw-data (wd-get-raw-page-data word))
       (pop-to-buffer
        (with-current-buffer (get-buffer-create "*Wiktionary*")
