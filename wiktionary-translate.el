@@ -49,17 +49,18 @@
                                                            (region-end))
                          (or (word-at-point)
                              (read-from-minibuffer "Word: "))))))
-  (-when-let (meaning (wd-translate-word word))
-    (pop-to-buffer
-     (with-current-buffer (get-buffer-create "*Wiktionary*")
-       (if (fboundp 'read-only-mode)
-           (read-only-mode -1)
-         (setq buffer-read-only nil))
-       (erase-buffer)
-       (insert meaning)
-       (special-mode)
-       (goto-char (point-min))
-       (current-buffer)))))
+  (-if-let (meaning (wd-translate-word word))
+      (pop-to-buffer
+       (with-current-buffer (get-buffer-create "*Wiktionary*")
+         (if (fboundp 'read-only-mode)
+             (read-only-mode -1)
+           (setq buffer-read-only nil))
+         (erase-buffer)
+         (insert meaning)
+         (special-mode)
+         (goto-char (point-min))
+         (current-buffer)))
+    (message "Failed to find a translation")))
 
 (defun wd-show-raw-translation (word)
   (interactive (list (if current-prefix-arg
@@ -80,7 +81,7 @@
          (special-mode)
          (goto-char (point-min))
          (current-buffer)))
-    (message "Failed to retrieve the page")))
+    (message "Failed to find a translation")))
 
 ;;;_* helpers
 (defun wd-get-page-text (buffer)
