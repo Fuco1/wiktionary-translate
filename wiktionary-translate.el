@@ -222,8 +222,8 @@
                               (1- (search-forward "|")))
                              (list :verb (concat what " of ")))))
          ;; # ''first-, second-person singular subjunctive imperfect of [[amare]]''
-         ((setq start (save-excursion (re-search-forward (regexp-opt '("person singular"
-                                                                       "person plural")) nil t)))
+         ((setq start (save-excursion (re-search-forward (regexp-opt '("-person singular"
+                                                                       "-person plural")) nil t)))
           (goto-char start)
           (let ((what (buffer-substring-no-properties
                        (+ (save-excursion (search-backward "''" nil t)) 2)
@@ -239,6 +239,11 @@
           (goto-char start)
           (let ((parent (buffer-substring-no-properties start (1- (search-forward "|" nil t)))))
             (wd-process-word parent (list :verb "past participle of "))))
+         ;; # {{gerund of|lasciare|lang=it}}
+         ((setq start (save-excursion (search-forward "gerund of|" nil t)))
+          (goto-char start)
+          (let ((parent (buffer-substring-no-properties start (1- (search-forward "|" nil t)))))
+            (wd-process-word parent (list :verb "gerund of "))))
          ;; # [[past participle]] of [[andare]]
          ((setq start (save-excursion (search-forward "[[past participle]] of" nil t)))
           (goto-char start)
