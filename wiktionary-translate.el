@@ -61,6 +61,27 @@
        (goto-char (point-min))
        (current-buffer)))))
 
+(defun wd-show-raw-translation (word)
+  (interactive (list (if current-prefix-arg
+                         (read-from-minibuffer "Word: " (or (word-at-point) ""))
+                       (if (use-region-p)
+                           (buffer-substring-no-properties (region-beginning)
+                                                           (region-end))
+                         (or (word-at-point)
+                             (read-from-minibuffer "Word: "))))))
+  (-if-let (raw-data (wd-get-raw-page-data word))
+      (pop-to-buffer
+       (with-current-buffer (get-buffer-create "*Wiktionary*")
+         (if (fboundp 'read-only-mode)
+             (read-only-mode -1)
+           (setq buffer-read-only nil))
+         (erase-buffer)
+         (insert raw-data)
+         (special-mode)
+         (goto-char (point-min))
+         (current-buffer)))
+    (message "Failed to retrieve the page")))
+
 ;;;_* helpers
 (defun wd-get-page-text (buffer)
   "Get the text from the wiktionary dump."
@@ -82,9 +103,13 @@
             "===============\n\n"
             (wd-sanitize-translation (wd-dewikify-markup meaning)))))
 
+(defun wd-get-raw-page-data (word)
+  (-when-let* ((raw-xml-buffer (wd-query-for-word word))
+               (text (wd-get-page-text raw-xml-buffer)))
+    text))
+
 (defun wd-process-word (word &optional extra)
-  (-if-let* ((raw-xml-buffer (wd-query-for-word word))
-             (text (wd-get-page-text raw-xml-buffer)))
+  (-if-let (text (wd-get-raw-page-data word))
       (with-temp-buffer
         (insert text)
         (let ((ita (wd-extract-language "Italian"))
@@ -95,7 +120,10 @@
                     (--if-let (wd-process-italian-noun ita) (concat extra-nominal "[" word "] " it) "")
                     (--if-let (wd-process-italian-adjective ita) (concat extra-nominal "[" word "] " it) "")
                     (wd-process-italian-invar ita)))))
-    (message "Failed to retrieve the page")))
+    ;; try to run the decapitalized version of the word
+    (if (not (equal (downcase word) word))
+        (wd-process-word (downcase word))
+      (message "Failed to retrieve the page"))))
 
 (defun wd-extract-language (language &optional buffer)
   (with-current-buffer (or buffer (current-buffer))
