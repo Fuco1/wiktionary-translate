@@ -124,18 +124,19 @@ Display translation of word."
                (text (wd-get-page-text raw-xml-buffer)))
     text))
 
-(defun wd-process-word (word &optional extra)
+(defun wd-process-word (word &optional language extra)
   (-if-let (text (wd-get-raw-page-data word))
       (with-temp-buffer
         (insert text)
-        (let ((ita (wd-extract-language "Italian"))
-              (extra-verb (or (plist-get extra :verb) ""))
-              (extra-nominal (or (plist-get extra :nominal) "")))
-          (when ita
-            (concat (--if-let (wd-process-italian-verb ita) (concat extra-verb "[" word "] " it) "")
-                    (--if-let (wd-process-italian-noun ita) (concat extra-nominal "[" word "] " it) "")
-                    (--if-let (wd-process-italian-adjective ita) (concat extra-nominal "[" word "] " it) "")
-                    (wd-process-italian-invar ita)))))
+        (if language
+            (cond
+             ((equal language "Italian")
+              (wd-process-italian-word word extra))
+             ((equal language "German")
+              (wd-process-german-word word extra)))
+          (concat
+           (wd-process-italian-word word extra)
+           (wd-process-german-word word extra))))
     ;; try to run the decapitalized version of the word
     (if (not (equal (downcase word) word))
         (wd-process-word (downcase word))
@@ -218,6 +219,17 @@ similar to `cond'."
 
 ;;;_. Italian
 
+(defun wd-process-italian-word (word extra)
+  "Process Italian word."
+  (let ((ita (wd-extract-language "Italian"))
+        (extra-verb (or (plist-get extra :verb) ""))
+        (extra-nominal (or (plist-get extra :nominal) "")))
+    (when ita
+      (concat (--if-let (wd-process-italian-verb ita) (concat extra-verb "[" word "] " it) "")
+              (--if-let (wd-process-italian-noun ita) (concat extra-nominal "[" word "] " it) "")
+              (--if-let (wd-process-italian-adjective ita) (concat extra-nominal "[" word "] " it) "")
+              (wd-process-italian-invar ita)))))
+
 ;;;_ , Verbs
 (defun wd-process-italian-verb (text)
   (with-temp-buffer
@@ -246,6 +258,7 @@ similar to `cond'."
                           (backward-char 5)
                           (point))))))
            (wd-process-word (buffer-substring-no-properties start (1- (search-forward "|" nil t)))
+                            "Italian"
                             (list :verb (concat what " of ")))))
         ;; # {{form of|first-, second- and third-person singular subjunctive present tense|essere|lang=it}}
         ((search-forward "{{form of|")
@@ -255,6 +268,7 @@ similar to `cond'."
            (wd-process-word (buffer-substring-no-properties
                              (point)
                              (1- (search-forward "|")))
+                            "Italian"
                             (list :verb (concat what " of ")))))
         ;; # ''first-, second-person singular subjunctive imperfect of [[amare]]''
         ((re-search-forward (regexp-opt '("-person singular"
@@ -267,23 +281,24 @@ similar to `cond'."
                (when (search-forward "]]" nil t)
                  (forward-char -2)
                  (wd-process-word (buffer-substring-no-properties s (point))
+                                  "Italian"
                                   (list :verb (concat what " of "))))))))
         ;; past participle {{past participle of|subordinare|lang=it}}
         ((search-forward "past participle of|")
          (let ((parent (buffer-substring-no-properties start (1- (search-forward "|" nil t)))))
-           (wd-process-word parent (list :verb "past participle of "))))
+           (wd-process-word parent "Italian" (list :verb "past participle of "))))
         ;; # {{gerund of|lasciare|lang=it}}
         ((search-forward "gerund of|")
          (let ((parent (buffer-substring-no-properties start (1- (search-forward "|" nil t)))))
-           (wd-process-word parent (list :verb "gerund of "))))
+           (wd-process-word parent "Italian" (list :verb "gerund of "))))
         ;; # [[past participle]] of [[andare]]
         ((search-forward "[[past participle]] of")
          (let ((parent (buffer-substring-no-properties (search-forward "[[") (- (search-forward "]]") 2))))
-           (wd-process-word parent (list :verb "past participle of "))))
+           (wd-process-word parent "Italian" (list :verb "past participle of "))))
         ;; feminine form of pp {{feminine of|subordinare|lang=it}}
         ((search-forward "feminine of|")
          (let ((parent (buffer-substring-no-properties start (1- (search-forward "|" nil t)))))
-           (wd-process-word parent (list :verb "feminine form of "))))
+           (wd-process-word parent "Italian" (list :verb "feminine form of "))))
         ;; normal definition
         (t (concat "verb:\n" (wd-process-meanings) "\n"))))))
 
@@ -310,16 +325,18 @@ similar to `cond'."
       ;; plural form # {{plural of|cavallo|lang=it}}
       ((search-forward "plural of|")
        (wd-process-word (buffer-substring-no-properties start (1- (search-forward "|" nil t)))
+                        "Italian"
                         (list :nominal "plural of ")))
       ;; plural form 2 # Plural form of [[compito]]
       ((search-forward "Plural form of [[")
        (wd-process-word (buffer-substring-no-properties
                          start
                          (- (search-forward "]]" nil t) 2))
+                        "Italian"
                         (list :nominal "plural of ")))
       ;; feminine form of # {{feminine of|compito|lang=it}}
       ((search-forward "feminine of|")
-       (wd-process-word (buffer-substring-no-properties start (1- (search-forward "|" nil t))) (list :nominal "feminine of ") ))
+       (wd-process-word (buffer-substring-no-properties start (1- (search-forward "|" nil t))) "Italian" (list :nominal "feminine of ") ))
       ;; normal definition
       (t
        ;; get the gender
@@ -353,6 +370,75 @@ similar to `cond'."
     (when (search-forward "===Conjunction===" nil t)
       (setq re (concat "Conjunction:\n" (wd-process-meanings) "\n" re)))
     re))
+
+;;;_. German
+
+(defun wd-process-german-word (word extra)
+  "Process German word."
+  (let ((ger (wd-extract-language "German"))
+        (extra-verb (or (plist-get extra :verb) ""))
+        (extra-nominal (or (plist-get extra :nominal) "")))
+    (when ger
+      (concat (--if-let (wd-process-german-verb ger) (concat extra-verb "[" word "] " it) "")
+              (--if-let (wd-process-german-noun ger) (concat extra-nominal "[" word "] " it) "")
+              (--if-let (wd-process-german-adjective ger) (concat extra-nominal "[" word "] " it) "")
+              (wd-process-german-invar ger)))))
+
+(defun wd-process-german-noun (text))
+(defun wd-process-german-adjective (text))
+(defun wd-process-german-invar (text))
+
+;;;_ , Verbs
+
+(defun wd-process-german-verb (text)
+  (with-temp-buffer
+    (insert text)
+    (wd--process-german-verb)))
+
+(defun wd--process-german-verb ()
+  (goto-char (point-min))
+  (when (re-search-forward (regexp-opt '("===Verb==="
+                                         "===Verb form===")) nil t)
+    (save-restriction
+      ;;(--when-let (re-search-forward "^===[^=]" nil t) (narrow-to-region (point) it))
+      (forward-line 1)
+      ;; first test if the page contains "conjugation" info
+      (wd-cond start
+        ;; # {{de-verb form of|fahren|1|s|g}}
+        ((search-forward "de-verb form of|")
+         (let ((what (save-excursion
+                       (buffer-substring-no-properties
+                        (progn
+                          (re-search-forward "|" nil t)
+                          (point))
+                        (progn
+                          (search-forward "}}" nil t)
+                          (backward-char 2)
+                          (point))))))
+           (wd-process-word (buffer-substring-no-properties start (1- (search-forward "|" nil t)))
+                            "German"
+                            (list :verb (concat what " of ")))))
+        ;; # {{first-person singular of|führen|lang=de}}
+        ((re-search-forward (regexp-opt '("-person singular of|"
+                                          "-person plural of |")))
+         (let ((what (buffer-substring-no-properties
+                      (+ (save-excursion (search-backward "{{" nil t)) 2)
+                      (- (save-excursion (search-forward " of|" nil t)) 4))))
+           (wd-process-word (buffer-substring-no-properties
+                             (point)
+                             (1- (search-forward "|")))
+                            "German"
+                            (list :verb (concat what " of ")))))
+        ;; past participle {{past participle of|essen|lang=de}}
+        ((search-forward "past participle of|")
+         (let ((parent (buffer-substring-no-properties start (1- (search-forward "|" nil t)))))
+           (wd-process-word parent "German" (list :verb "past participle of "))))
+        ;; # past participle of ''[[rufen]]''
+        ((search-forward "past participle of")
+         (let ((parent (buffer-substring-no-properties (search-forward "[[") (- (search-forward "]]") 2))))
+           (wd-process-word parent "German" (list :verb "past participle of "))))
+        ;; normal definition
+        (t (concat "verb:\n" (wd-process-meanings) "\n"))))))
 
 (provide 'wiktionary-translate)
 
