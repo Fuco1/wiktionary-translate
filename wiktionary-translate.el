@@ -48,6 +48,20 @@
             (or (word-at-point)
                 (read-from-minibuffer "Word: "))))))
 
+(defvar wd-buffer-word nil
+  "Word translated in current *Wiktionary* buffer.")
+
+(define-derived-mode wd-mode special-mode "Wiktionary"
+  "Wiktionary translation mode.
+
+Display translation of word."
+  (make-local-variable 'wd-buffer-word)
+  (set (make-local-variable 'revert-buffer-function)
+       (function wd-revert-buffer)))
+
+(defun wd-revert-buffer (&optional _ _ _)
+  (wd-show-translation wd-buffer-word))
+
 ;;;_. UI
 
 ;; TODO: refactor these two methods into something nicer
@@ -63,7 +77,8 @@
            (setq buffer-read-only nil))
          (erase-buffer)
          (insert meaning)
-         (special-mode)
+         (wd-mode)
+         (setq wd-buffer-word word)
          (goto-char (point-min))
          (current-buffer)))
     (message "Failed to find a translation")))
