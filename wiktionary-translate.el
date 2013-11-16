@@ -33,7 +33,7 @@
 
 (require 'dash)
 
-;;;_* Start
+;;;_. Start
 (defconst wd-base-query
   "http://en.wiktionary.org/w/api.php?action=query&format=xml&prop=revisions&rvprop=content&titles="
   "Append the word to this query to retrieve the data.")
@@ -47,7 +47,8 @@
                                               (region-end))
             (or (word-at-point)
                 (read-from-minibuffer "Word: "))))))
-;;;_* UI
+
+;;;_. UI
 
 ;; TODO: refactor these two methods into something nicer
 
@@ -82,7 +83,7 @@
          (current-buffer)))
     (message "Failed to find a translation")))
 
-;;;_* helpers
+;;;_. helpers
 (defun wd-get-page-text (buffer)
   "Get the text from the wiktionary dump."
   (with-current-buffer buffer
@@ -158,7 +159,7 @@
         (delete-blank-lines)))
     (buffer-string)))
 
-;;;_* Italian
+;;;_. Italian
 (defun wd-process-italian-meanings ()
   (when (search-forward "#" nil t)
     (beginning-of-line)
@@ -181,7 +182,7 @@
           (setq i (1+ i))))
       text)))
 
-;;;_** Verbs
+;;;_ , Verbs
 (defun wd-process-italian-verb (text)
   (with-temp-buffer
     (insert text)
@@ -259,7 +260,7 @@
          ;; normal definition
          (t (concat "verb:\n" (wd-process-italian-meanings) "\n")))))))
 
-;;;_** Nominals
+;;;_ , Nominals
 (defun wd-process-italian-noun (text)
   (with-temp-buffer
     (insert text)
@@ -299,7 +300,7 @@
        ;; normal definition
        (t (concat pos-name ":\n" (wd-process-italian-meanings) "\n"))))))
 
-;;;_** Invariable: conjunctions, prepositions, adverbs
+;;;_ , Invariable: conjunctions, prepositions, adverbs
 (defun wd-process-italian-invar (text)
   (with-temp-buffer
     (insert text)
@@ -326,7 +327,7 @@
 ;; Local Variables:
 ;;   mode: emacs-lisp
 ;;   mode: allout
-;;   outline-regexp: ";;;_\\([*]\\)+"
+;;   outline-regexp: "^;;;_\\([,. ]+\\)"
 ;; End:
 
 ;;; wiktionary-translate.el ends here
