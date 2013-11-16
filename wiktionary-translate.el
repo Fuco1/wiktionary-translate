@@ -387,10 +387,6 @@ similar to `cond'."
               (--if-let (wd-process-german-adjective ger) (concat extra-nominal "[" word "] " it) "")
               (wd-process-german-invar ger)))))
 
-(defun wd-process-german-noun (text))
-(defun wd-process-german-adjective (text))
-(defun wd-process-german-invar (text))
-
 ;;;_ , Verbs
 
 (defun wd-process-german-verb (text)
@@ -442,6 +438,127 @@ similar to `cond'."
            (wd-process-word parent "German" (list :verb "past participle of "))))
         ;; normal definition
         (t (concat "verb:\n" (wd-process-meanings) "\n"))))))
+
+;;;_ , Nouns
+
+(defun wd-process-german-noun (text)
+  (with-temp-buffer
+    (insert text)
+    (wd--process-german-noun)))
+
+(defun wd--process-german-noun ()
+  (goto-char (point-min))
+  (when (search-forward "===Noun===" nil t)
+    (forward-line 1)
+    (wd-cond start
+      ;; plural form # {{plural of|Fall|lang=de}}
+      ((search-forward "plural of|")
+       (wd-process-word (buffer-substring-no-properties start (1- (search-forward "|" nil t)))
+                        "German"
+                        (list :nominal "plural of ")))
+      ;; plural form 2 # Plural form of [[compito]] // not attested yet :D
+      ((search-forward "Plural form of [[")
+       (wd-process-word (buffer-substring-no-properties
+                         start
+                         (- (search-forward "]]" nil t) 2))
+                        "German"
+                        (list :nominal "plural of ")))
+      ;; feminine form of # {{feminine of|lang=de|Lehrer}}
+      ((search-forward "feminine of|lang=de|")
+       (let ((info (save-excursion
+                     (search-backward "===Noun===")
+                     (when (search-forward "{{de-noun|" nil t)
+                       (replace-regexp-in-string
+                        "|" ","
+                        (buffer-substring-no-properties
+                         (point)
+                         (- (search-forward "}}") 2)))))))
+         (wd-process-word (buffer-substring-no-properties start (1- (search-forward "|" nil t))) "German" (list :nominal (concat "(" info "), feminine of ")))))
+      ;; feminine form of # {{feminine of|Lehrer|lang=de}}
+      ((search-forward "feminine of|")
+       (wd-process-word (buffer-substring-no-properties start (1- (search-forward "|" nil t))) "German" (list :nominal "feminine of ")))
+      ;; normal definition
+      (t
+       ;; get the gender {{de-noun|m|Falls|gen2=Falles|Fälle}} // {{de-noun|f|Lehrerin|Lehrerinnen|m=Lehrer}}
+       (let ((gender (save-excursion
+                       (when (search-forward "{{de-noun|" nil t)
+                         (replace-regexp-in-string
+                          "|" ","
+                          (buffer-substring-no-properties
+                           (point)
+                           (- (search-forward "}}") 2)))))))
+         (concat "noun" (if gender (concat "[" gender "]") "") ":\n" (wd-process-meanings) "\n"))))))
+
+;;;_ , Adjectives
+
+(defun wd-process-german-adjective (text)
+  (with-temp-buffer
+    (insert text)
+    (wd--process-german-adjective)))
+
+(defun wd--process-german-adjective ()
+  (goto-char (point-min))
+  (when (search-forward "===Adjective===" nil t)
+    (forward-line 1)
+    (wd-cond start
+      ;; # {{inflected form of|voll|lang=de}}
+      ((search-forward "inflected form of|")
+       (wd-process-word (buffer-substring-no-properties start (1- (search-forward "|" nil t)))
+                        "German"
+                        (list :nominal "inflected form of ")))
+      ;; # {{comparative of|reich|lang=de}}
+      ((search-forward "comparative of|")
+       (wd-process-word (buffer-substring-no-properties start (1- (search-forward "|" nil t)))
+                        "German"
+                        (list :nominal "comparative of ")))
+      ;; # {{superlative of|jung|lang=de}}
+      ((search-forward "superlative of|")
+       (wd-process-word (buffer-substring-no-properties start (1- (search-forward "|" nil t)))
+                        "German"
+                        (list :nominal "superlative of ")))
+      ;; # {{de-form-adj|s|f|n|voll}}
+      ((search-forward "de-form-adj|")
+       (search-forward "|")
+       (search-forward "|")
+       (search-forward "|")
+       (wd-process-word (buffer-substring-no-properties (point) (- (search-forward "}}" nil t) 2))
+                        "German"
+                        (list :nominal "inflected form of ")))
+      ;; normal definition
+      (t
+       ;; get the gender {{de-noun|m|Falls|gen2=Falles|Fälle}} // {{de-noun|f|Lehrerin|Lehrerinnen|m=Lehrer}}
+       (let ((info (save-excursion
+                     (when (search-forward "{{de-adj|" nil t)
+                       (replace-regexp-in-string
+                        "|" ","
+                        (buffer-substring-no-properties
+                         (point)
+                         (- (search-forward "}}") 2)))))))
+         (concat "adjective" (if info (concat "[" info "]") "") ":\n" (wd-process-meanings) "\n"))))))
+
+;;;_ , Invariables
+(defun wd-process-german-invar (text)
+  (with-temp-buffer
+    (insert text)
+    (or (wd--process-german-invar) "")))
+
+(defun wd--process-german-invar ()
+  (let ((re ""))
+    (goto-char (point-min))
+    (when (search-forward "===Adverb===" nil t)
+      (setq re (concat "Adverb:\n" (wd-process-meanings) "\n" re)))
+    (goto-char (point-min))
+    (when (search-forward "===Preposition===" nil t)
+      (setq re (concat "Preposition:\n" (wd-process-meanings) "\n" re)))
+    (goto-char (point-min))
+    (when (search-forward "===Interjection===" nil t)
+      (setq re (concat "Interjection:\n" (wd-process-meanings) "\n" re)))
+    (goto-char (point-min))
+    (when (search-forward "===Conjunction===" nil t)
+      (setq re (concat "Conjunction:\n" (wd-process-meanings) "\n" re)))
+    re))
+
+;;;_. End
 
 (provide 'wiktionary-translate)
 
