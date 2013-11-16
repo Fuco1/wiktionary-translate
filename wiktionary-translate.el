@@ -276,7 +276,7 @@ similar to `cond'."
         ((re-search-forward (regexp-opt '("-person singular"
                                           "-person plural")))
          (let ((what (buffer-substring-no-properties
-                      (+ (save-excursion (search-backward "''" nil t)) 2)
+                      (+ (save-excursion (search-backward "#" nil t)) 2)
                       (- (save-excursion (search-forward " of " nil t)) 3))))
            (when (search-forward " of [[" nil t)
              (let ((s (point)))
