@@ -157,8 +157,10 @@ Display translation of word."
     (insert text)
     (goto-char (point-min))
     (save-excursion (replace-regexp "\\[\\[\\(.*?\\)\\]\\]" "\\1"))
-    (save-excursion (replace-regexp "{{context|\\(.*?\\)|\\(.*?\\)|lang=.*?}}" "(Context: \\1 \\2)"))
-    (save-excursion (replace-regexp "{{context|\\(.*?\\)|lang=.*?}}" "(Context: \\1)"))
+    (save-excursion (while (re-search-forward "{{context|\\(.*?\\)|lang=.*?}}" nil t)
+                      (let ((start (match-beginning 0)))
+                        (replace-match "(\\1)")
+                        (replace-string "|" ", " nil start (point)))))
     (save-excursion (replace-regexp "{{qualifier|\\(.*?\\)}}" "(Qualifier: \\1)"))
     (buffer-string)))
 
