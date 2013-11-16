@@ -306,7 +306,16 @@ similar to `cond'."
       ((search-forward "feminine of|")
        (wd-process-word (buffer-substring-no-properties start (1- (search-forward "|" nil t))) (list :nominal "feminine of ") ))
       ;; normal definition
-      (t (concat pos-name ":\n" (wd-process-meanings) "\n")))))
+      (t
+       ;; get the gender
+       (let ((gender (save-excursion
+                       (when (search-forward "{{it-noun|" nil t)
+                         (replace-regexp-in-string
+                          "|" ","
+                          (buffer-substring-no-properties
+                           (point)
+                           (- (search-forward "}}") 2)))))))
+         (concat pos-name (if gender (concat "[" gender "]") "") ":\n" (wd-process-meanings) "\n"))))))
 
 ;;;_ , Invariable: conjunctions, prepositions, adverbs
 (defun wd-process-italian-invar (text)
