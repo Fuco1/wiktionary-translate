@@ -116,7 +116,8 @@ Display translation of word."
 (defun wd-translate-word (word)
   (-when-let (meaning (wd-process-word word))
     (concat "Translations of " word "\n"
-            "===============\n\n"
+            "================" (make-string (length word) ?=)
+            "\n\n"
             (wd-sanitize-translation (wd-dewikify-markup meaning)))))
 
 (defun wd-get-raw-page-data (word)
@@ -135,8 +136,8 @@ Display translation of word."
              ((equal language "German")
               (wd-process-german-word word extra)))
           (concat
-           (wd-process-italian-word word extra)
-           (wd-process-german-word word extra))))
+           (--if-let (wd-process-italian-word word extra) (concat "Italian\n-------\n" it) "")
+           (--if-let (wd-process-german-word word extra) (concat "German\n------\n" it) ""))))
     ;; try to run the decapitalized version of the word
     (if (not (equal (downcase word) word))
         (wd-process-word (downcase word))
