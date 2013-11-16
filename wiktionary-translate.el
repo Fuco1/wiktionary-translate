@@ -159,8 +159,7 @@
         (delete-blank-lines)))
     (buffer-string)))
 
-;;;_. Italian
-(defun wd-process-italian-meanings ()
+(defun wd-process-meanings ()
   (when (search-forward "#" nil t)
     (beginning-of-line)
     (let ((text "") (i 1) done)
@@ -182,6 +181,28 @@
           (setq i (1+ i))))
       text)))
 
+(defmacro wd-cond (start-var &rest clauses)
+  "A helper macro to simplify the search for various subsections.
+
+START-VAR is a symbol to which start position after the search is saved.
+
+CLAUSES is a list of the form ((search-form) (what-to-do)),
+similar to `cond'."
+  (declare (indent 1)
+           (debug (sexp &rest [(sexp body)])))
+  `(let (,start-var)
+     (cond
+      ,@(mapcar
+         (lambda (clause)
+           (if (eq (car clause) t)
+               `(t ,@(cdr clause))
+             `((setq ,start-var (save-excursion ,(append (car clause) (list nil t))))
+               (goto-char ,start-var)
+               ,@(cdr clause))))
+         clauses))))
+
+;;;_. Italian
+
 ;;;_ , Verbs
 (defun wd-process-italian-verb (text)
   (with-temp-buffer
@@ -196,69 +217,60 @@
       ;;(--when-let (re-search-forward "^===[^=]" nil t) (narrow-to-region (point) it))
       (forward-line 1)
       ;; first test if the page contains "conjugation" info
-      (let (start)
-        ;; TODO: refactor the "cond/setq start/goto start" pattern into a macro
-        (cond
-         ;; # {{conjugation of|togliere||1|s|pres|ind|lang=it}} ''tolgo''
-         ((setq start (save-excursion (search-forward "conjugation of|" nil t)))
-          (goto-char start)
-          (let ((what (save-excursion
-                        (buffer-substring-no-properties
-                         (progn
-                           (re-search-forward "[123]" nil t)
-                           (backward-char 1)
-                           (point))
-                         (progn
-                           (search-forward "|lang" nil t)
-                           (backward-char 5)
-                           (point))))))
-            (wd-process-word (buffer-substring-no-properties start (1- (search-forward "|" nil t)))
-                             (list :verb (concat what " of ")))))
-         ;; # {{form of|first-, second- and third-person singular subjunctive present tense|essere|lang=it}}
-         ((setq start (save-excursion (search-forward "{{form of|" nil t)))
-          (goto-char start)
-          (let ((what (buffer-substring-no-properties
-                       (point)
-                       (1- (search-forward "|")))))
-            (wd-process-word (buffer-substring-no-properties
-                              (point)
-                              (1- (search-forward "|")))
-                             (list :verb (concat what " of ")))))
-         ;; # ''first-, second-person singular subjunctive imperfect of [[amare]]''
-         ((setq start (save-excursion (re-search-forward (regexp-opt '("-person singular"
-                                                                       "-person plural")) nil t)))
-          (goto-char start)
-          (let ((what (buffer-substring-no-properties
-                       (+ (save-excursion (search-backward "''" nil t)) 2)
-                       (- (save-excursion (search-forward " of " nil t)) 3))))
-            (when (search-forward " of [[" nil t)
-              (let ((s (point)))
-                (when (search-forward "]]" nil t)
-                  (forward-char -2)
-                  (wd-process-word (buffer-substring-no-properties s (point))
-                                   (list :verb (concat what " of "))))))))
-         ;; past participle {{past participle of|subordinare|lang=it}}
-         ((setq start (save-excursion (search-forward "past participle of|" nil t)))
-          (goto-char start)
-          (let ((parent (buffer-substring-no-properties start (1- (search-forward "|" nil t)))))
-            (wd-process-word parent (list :verb "past participle of "))))
-         ;; # {{gerund of|lasciare|lang=it}}
-         ((setq start (save-excursion (search-forward "gerund of|" nil t)))
-          (goto-char start)
-          (let ((parent (buffer-substring-no-properties start (1- (search-forward "|" nil t)))))
-            (wd-process-word parent (list :verb "gerund of "))))
-         ;; # [[past participle]] of [[andare]]
-         ((setq start (save-excursion (search-forward "[[past participle]] of" nil t)))
-          (goto-char start)
-          (let ((parent (buffer-substring-no-properties (search-forward "[[") (- (search-forward "]]") 2))))
-            (wd-process-word parent (list :verb "past participle of "))))
-         ;; feminine form of pp {{feminine of|subordinare|lang=it}}
-         ((setq start (save-excursion (search-forward "feminine of|" nil t)))
-          (goto-char start)
-          (let ((parent (buffer-substring-no-properties start (1- (search-forward "|" nil t)))))
-            (wd-process-word parent (list :verb "feminine form of "))))
-         ;; normal definition
-         (t (concat "verb:\n" (wd-process-italian-meanings) "\n")))))))
+      (wd-cond start
+        ;; # {{conjugation of|togliere||1|s|pres|ind|lang=it}} ''tolgo''
+        ((search-forward "conjugation of|")
+         (let ((what (save-excursion
+                       (buffer-substring-no-properties
+                        (progn
+                          (re-search-forward "[123]" nil t)
+                          (backward-char 1)
+                          (point))
+                        (progn
+                          (search-forward "|lang" nil t)
+                          (backward-char 5)
+                          (point))))))
+           (wd-process-word (buffer-substring-no-properties start (1- (search-forward "|" nil t)))
+                            (list :verb (concat what " of ")))))
+        ;; # {{form of|first-, second- and third-person singular subjunctive present tense|essere|lang=it}}
+        ((search-forward "{{form of|")
+         (let ((what (buffer-substring-no-properties
+                      (point)
+                      (1- (search-forward "|")))))
+           (wd-process-word (buffer-substring-no-properties
+                             (point)
+                             (1- (search-forward "|")))
+                            (list :verb (concat what " of ")))))
+        ;; # ''first-, second-person singular subjunctive imperfect of [[amare]]''
+        ((re-search-forward (regexp-opt '("-person singular"
+                                          "-person plural")))
+         (let ((what (buffer-substring-no-properties
+                      (+ (save-excursion (search-backward "''" nil t)) 2)
+                      (- (save-excursion (search-forward " of " nil t)) 3))))
+           (when (search-forward " of [[" nil t)
+             (let ((s (point)))
+               (when (search-forward "]]" nil t)
+                 (forward-char -2)
+                 (wd-process-word (buffer-substring-no-properties s (point))
+                                  (list :verb (concat what " of "))))))))
+        ;; past participle {{past participle of|subordinare|lang=it}}
+        ((search-forward "past participle of|")
+         (let ((parent (buffer-substring-no-properties start (1- (search-forward "|" nil t)))))
+           (wd-process-word parent (list :verb "past participle of "))))
+        ;; # {{gerund of|lasciare|lang=it}}
+        ((search-forward "gerund of|")
+         (let ((parent (buffer-substring-no-properties start (1- (search-forward "|" nil t)))))
+           (wd-process-word parent (list :verb "gerund of "))))
+        ;; # [[past participle]] of [[andare]]
+        ((search-forward "[[past participle]] of")
+         (let ((parent (buffer-substring-no-properties (search-forward "[[") (- (search-forward "]]") 2))))
+           (wd-process-word parent (list :verb "past participle of "))))
+        ;; feminine form of pp {{feminine of|subordinare|lang=it}}
+        ((search-forward "feminine of|")
+         (let ((parent (buffer-substring-no-properties start (1- (search-forward "|" nil t)))))
+           (wd-process-word parent (list :verb "feminine form of "))))
+        ;; normal definition
+        (t (concat "verb:\n" (wd-process-meanings) "\n"))))))
 
 ;;;_ , Nominals
 (defun wd-process-italian-noun (text)
@@ -279,26 +291,22 @@
   (goto-char (point-min))
   (when (re-search-forward category-regexp nil t)
     (forward-line 1)
-    (let (start)
-      (cond
-       ;; plural form # {{plural of|cavallo|lang=it}}
-       ((setq start (save-excursion (search-forward "plural of|" nil t)))
-        (goto-char start)
-        (wd-process-word (buffer-substring-no-properties start (1- (search-forward "|" nil t)))
-                         (list :nominal "plural of ")))
-       ;; plural form 2 # Plural form of [[compito]]
-       ((setq start (save-excursion (search-forward "Plural form of [[" nil t)))
-        (goto-char start)
-        (wd-process-word (buffer-substring-no-properties
-                          start
-                          (- (search-forward "]]" nil t) 2))
-                         (list :nominal "plural of ")))
-       ;; feminine form of # {{feminine of|compito|lang=it}}
-       ((setq start (save-excursion (search-forward "feminine of|" nil t)))
-        (goto-char start)
-        (wd-process-word (buffer-substring-no-properties start (1- (search-forward "|" nil t))) (list :nominal "feminine of ") ))
-       ;; normal definition
-       (t (concat pos-name ":\n" (wd-process-italian-meanings) "\n"))))))
+    (wd-cond start
+      ;; plural form # {{plural of|cavallo|lang=it}}
+      ((search-forward "plural of|")
+       (wd-process-word (buffer-substring-no-properties start (1- (search-forward "|" nil t)))
+                        (list :nominal "plural of ")))
+      ;; plural form 2 # Plural form of [[compito]]
+      ((search-forward "Plural form of [[")
+       (wd-process-word (buffer-substring-no-properties
+                         start
+                         (- (search-forward "]]" nil t) 2))
+                        (list :nominal "plural of ")))
+      ;; feminine form of # {{feminine of|compito|lang=it}}
+      ((search-forward "feminine of|")
+       (wd-process-word (buffer-substring-no-properties start (1- (search-forward "|" nil t))) (list :nominal "feminine of ") ))
+      ;; normal definition
+      (t (concat pos-name ":\n" (wd-process-meanings) "\n")))))
 
 ;;;_ , Invariable: conjunctions, prepositions, adverbs
 (defun wd-process-italian-invar (text)
@@ -310,16 +318,16 @@
   (let ((re ""))
     (goto-char (point-min))
     (when (search-forward "===Adverb===" nil t)
-      (setq re (concat "Adverb:\n" (wd-process-italian-meanings) "\n" re)))
+      (setq re (concat "Adverb:\n" (wd-process-meanings) "\n" re)))
     (goto-char (point-min))
     (when (search-forward "===Preposition===" nil t)
-      (setq re (concat "Preposition:\n" (wd-process-italian-meanings) "\n" re)))
+      (setq re (concat "Preposition:\n" (wd-process-meanings) "\n" re)))
     (goto-char (point-min))
     (when (search-forward "===Interjection===" nil t)
-      (setq re (concat "Interjection:\n" (wd-process-italian-meanings) "\n" re)))
+      (setq re (concat "Interjection:\n" (wd-process-meanings) "\n" re)))
     (goto-char (point-min))
     (when (search-forward "===Conjunction===" nil t)
-      (setq re (concat "Conjunction:\n" (wd-process-italian-meanings) "\n" re)))
+      (setq re (concat "Conjunction:\n" (wd-process-meanings) "\n" re)))
     re))
 
 (provide 'wiktionary-translate)
@@ -328,6 +336,7 @@
 ;;   mode: emacs-lisp
 ;;   mode: allout
 ;;   outline-regexp: "^;;;_\\([,. ]+\\)"
+;;   eval: (font-lock-add-keywords nil `((,(concat "(" (regexp-opt '("wd-cond") t) "\\_>") 1 'font-lock-keyword-face)))
 ;; End:
 
 ;;; wiktionary-translate.el ends here
