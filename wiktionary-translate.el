@@ -35,7 +35,7 @@
 
 ;;;_. Start
 (defconst wd-base-query
-  "http://en.wiktionary.org/w/api.php?action=query&format=xml&prop=revisions&rvprop=content&titles="
+  "http://en.wiktionary.org/w/api.php?action=query&format=json&prop=revisions&rvslots=*&rvprop=content&titles="
   "Append the word to this query to retrieve the data.")
 
 (defun wd-interactive-translate-spec ()
@@ -102,14 +102,15 @@ Display translation of word."
 (defun wd-get-page-text (buffer)
   "Get the text from the wiktionary dump."
   (with-current-buffer buffer
-    ;; old export query
-    (caddr (nth 2 (caddr (caddr (caddr (caddr (libxml-parse-xml-region (point-min) (point-max))))))))))
+    (goto-char (point-min))
+    (let ((data (json-read)))
+      (cdr (nth 3 (cadr (car (elt (cdr (nth 4 (cadr (cadr (cadr data))))) 0))))))))
 
 (defun wd-query-for-word (word)
   (let ((data (url-retrieve-synchronously (concat wd-base-query word))))
     (with-current-buffer data
       (goto-char (point-min))
-      (search-forward "<?xml version=\"1.0\"?>")
+      (re-search-forward "\n\n")
       (delete-region (point-min) (point)))
     data))
 
@@ -121,8 +122,8 @@ Display translation of word."
             (wd-sanitize-translation (wd-dewikify-markup meaning)))))
 
 (defun wd-get-raw-page-data (word)
-  (-when-let* ((raw-xml-buffer (wd-query-for-word word))
-               (text (wd-get-page-text raw-xml-buffer)))
+  (-when-let* ((raw-json-buffer (wd-query-for-word word))
+               (text (wd-get-page-text raw-json-buffer)))
     text))
 
 (defun wd-process-word (word &optional language extra)
@@ -564,8 +565,6 @@ similar to `cond'."
 
 ;; Local Variables:
 ;;   mode: emacs-lisp
-;;   mode: allout
-;;   outline-regexp: "^;;;_\\([,. ]+\\)"
 ;;   eval: (font-lock-add-keywords nil `((,(concat "(" (regexp-opt '("wd-cond") t) "\\_>") 1 'font-lock-keyword-face)))
 ;; End:
 
