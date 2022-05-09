@@ -283,6 +283,25 @@ This is a macro used across languages on English wiktionary."
                      language
                      (list :nominal (concat what " of ")))))
 
+(defun wd-process-generic-noun-plural (language)
+  "Process `plural of' macro for LANGUAGE noun.
+
+This is a macro used across languages on English wiktionary."
+  ;; # {{plural of|Fall|lang=de}}
+  ;; # {{plural of|de|Lehrerin}}
+  (let ((word (save-excursion
+                (if (looking-at-p "..|")
+                    (progn
+                      (forward-char 3)
+                      (re-search-forward "\\(.*?\\)}}")
+                      (match-string 1))
+                  (re-search-forward "\\(.*?\\)|")
+                  (match-string 1)
+                  ))))
+    (wd-process-word word
+                     language
+                     (list :nominal "plural of "))))
+
 (defmacro wd-cond (start-var &rest clauses)
   "A helper macro to simplify the search for various subsections.
 
@@ -413,9 +432,7 @@ similar to `cond'."
     (wd-cond start
       ;; plural form # {{plural of|cavallo|lang=it}}
       ((search-forward "plural of|")
-       (wd-process-word (buffer-substring-no-properties start (1- (search-forward "|" nil t)))
-                        "Italian"
-                        (list :nominal "plural of ")))
+       (wd-process-generic-noun-plural "Italian"))
       ;; plural form 2 # Plural form of [[compito]]
       ((search-forward "Plural form of [[")
        (wd-process-word (buffer-substring-no-properties
@@ -540,18 +557,7 @@ similar to `cond'."
       ;; # {{plural of|Fall|lang=de}}
       ;; # {{plural of|de|Lehrerin}}
       ((search-forward "plural of|")
-       (let ((word (save-excursion
-                     (if (looking-at-p "de|")
-                         (progn
-                           (forward-char 3)
-                           (re-search-forward "\\(.*?\\)}}")
-                           (match-string 1))
-                       (re-search-forward "\\(.*?\\)|")
-                       (match-string 1)
-                       ))))
-         (wd-process-word word
-                          "German"
-                          (list :nominal "plural of "))))
+       (wd-process-generic-noun-plural "German"))
       ;; # {{inflection of|de|Fall||nom//acc//gen|p}}
       ((search-forward "inflection of|de|")
        (wd-process-generic-noun-inflection "German"))
@@ -711,6 +717,8 @@ similar to `cond'."
         ;; # {{inflection of|ru|пробле́ма||gen|p}}
         ((search-forward "inflection of|ru|")
          (wd-process-generic-noun-inflection "Russian"))
+        ((search-forward "plural of|")
+         (wd-process-generic-noun-plural "Russian"))
         ;; normal definition
         (t (concat "noun:\n" (wd-process-meanings) "\n"))))))
 
