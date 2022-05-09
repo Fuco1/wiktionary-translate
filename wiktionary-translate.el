@@ -185,13 +185,14 @@ Display translation of word."
     (let ((text "") (i 1) done)
       (while (not done)
         ;; process a sub-header
-        (if (looking-at "#\\(:+\\)")
+        (if (looking-at "#\\([:*]+\\)")
             (let ((depth (length (match-string 0))))
               (forward-char depth)
               (setq text (concat
                           text
-                          (make-string (* 4 (1- depth)) ?\ )
-                          (buffer-substring-no-properties (point) (line-end-position)) "\n"))
+                          (make-string (* 2 (1- depth)) ?\ )
+                          "- "
+                          (string-trim (buffer-substring-no-properties (point) (line-end-position))) "\n"))
               (forward-line 1)
               (setq done (not (looking-at "#"))))
           (forward-char 2)
