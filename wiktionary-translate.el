@@ -123,9 +123,10 @@ Display translation of word."
             (wd-sanitize-translation (wd-dewikify-markup meaning)))))
 
 (defun wd-get-raw-page-data (word)
-  (-when-let* ((raw-json-buffer (wd-query-for-word word))
-               (text (wd-get-page-text raw-json-buffer)))
-    text))
+  (let* ((word (replace-regexp-in-string "́" "" word)))
+    (-when-let* ((raw-json-buffer (wd-query-for-word word))
+                 (text (wd-get-page-text raw-json-buffer)))
+      text)))
 
 (defun wd-process-word (word &optional language extra)
   (-if-let (text (wd-get-raw-page-data word))
