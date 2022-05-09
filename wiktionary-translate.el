@@ -265,6 +265,20 @@ similar to `cond'."
            (wd-process-word (buffer-substring-no-properties start (1- (search-forward "|" nil t)))
                             "Italian"
                             (list :verb (concat what " of ")))))
+        ((search-forward "inflection of|it|")
+         (let ((what (save-excursion
+                       (buffer-substring-no-properties
+                        (progn
+                          (re-search-forward "[123]" nil t)
+                          (backward-char 1)
+                          (point))
+                        (progn
+                          (search-forward "}}" nil t)
+                          (backward-char 2)
+                          (point))))))
+           (wd-process-word (buffer-substring-no-properties start (1- (search-forward "|" nil t)))
+                            "Italian"
+                            (list :verb (concat what " of ")))))
         ;; # {{form of|first-, second- and third-person singular subjunctive present tense|essere|lang=it}}
         ((search-forward "{{form of|")
          (let ((what (buffer-substring-no-properties
