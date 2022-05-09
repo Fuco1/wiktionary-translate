@@ -137,10 +137,13 @@ Display translation of word."
              ((equal language "Italian")
               (wd-process-italian-word word extra))
              ((equal language "German")
-              (wd-process-german-word word extra)))
+              (wd-process-german-word word extra))
+             ((equal language "Russian")
+              (wd-process-russian-word word extra)))
           (concat
            (--if-let (wd-process-italian-word word extra) (concat "Italian\n-------\n" it) "")
-           (--if-let (wd-process-german-word word extra) (concat "German\n------\n" it) ""))))
+           (--if-let (wd-process-german-word word extra) (concat "German\n------\n" it) "")
+           (--if-let (wd-process-russian-word word extra) (concat "Russian\n-------\n" it) ""))))
     ;; try to run the decapitalized version of the word
     (if (not (equal (downcase word) word))
         (wd-process-word (downcase word))
@@ -244,6 +247,41 @@ Display translation of word."
           (setq done (not (looking-at "#")))
           (setq i (1+ i))))
       text)))
+
+(defun wd-process-generic-verb-inflection (language)
+  "Process `inflection of' macro for LANGUAGE verb.
+
+This is a macro used across languages on English wiktionary."
+  (let ((what (save-excursion
+                (buffer-substring-no-properties
+                 (progn
+                   (re-search-forward "[123]" nil t)
+                   (backward-char 1)
+                   (point))
+                 (progn
+                   (search-forward "}}" nil t)
+                   (backward-char 2)
+                   (point))))))
+    (wd-process-word (buffer-substring-no-properties start (1- (search-forward "|" nil t)))
+                     language
+                     (list :verb (concat what " of ")))))
+
+(defun wd-process-generic-noun-inflection (language)
+  "Process `inflection of' macro for LANGUAGE noun.
+
+This is a macro used across languages on English wiktionary."
+  (let ((what (save-excursion
+                (buffer-substring-no-properties
+                 (progn
+                   (re-search-forward "||" nil t)
+                   (point))
+                 (progn
+                   (search-forward "}}" nil t)
+                   (backward-char 2)
+                   (point))))))
+    (wd-process-word (buffer-substring-no-properties start (1- (search-forward "|" nil t)))
+                     language
+                     (list :nominal (concat what " of ")))))
 
 (defmacro wd-cond (start-var &rest clauses)
   "A helper macro to simplify the search for various subsections.
@@ -618,6 +656,72 @@ similar to `cond'."
     re))
 
 ;;;_. End
+
+;;;_. Russian
+(defun wd-process-russian-word (word extra)
+  "Process Russian word."
+  (let ((ger (wd-extract-language "Russian"))
+        (extra-verb (or (plist-get extra :verb) ""))
+        (extra-nominal (or (plist-get extra :nominal) "")))
+    (when ger
+      (concat (--if-let (wd-process-russian-verb ger) (concat extra-verb "[" word "] " it) "")
+              (--if-let (wd-process-russian-noun ger) (concat extra-nominal "[" word "] " it) "")
+              (--if-let (wd-process-russian-adjective ger) (concat extra-nominal "[" word "] " it) "")
+              (wd-process-russian-invar ger)))))
+
+(defun wd-process-russian-verb (text)
+  (with-temp-buffer
+    (insert text)
+    (goto-char (point-min))
+    (when (re-search-forward (regexp-opt '("===Verb==="
+                                           "===Verb form===")) nil t)
+      (save-restriction
+        (forward-line 1)
+        ;; first test if the page contains "conjugation" info
+        (wd-cond start
+          ;; # {{ru-verb|обсужда́ть|impf|pf=обсуди́ть}}
+          ((search-forward "ru-verb|")
+           (-let (((aspect other-aspect other-verb)
+                   (save-excursion
+                     (re-search-forward "|\\(.*?\\)|\\(.*?\\)=\\(.*?\\)}}" nil t)
+                     (list (match-string 1) (match-string 2) (match-string 3)))))
+             (format "verb (%s, %s: %s):\n%s\n"
+                     aspect
+                     other-aspect
+                     other-verb
+                     (wd-process-meanings))))
+          ;; # {{inflection of|ru|обсужда́ть||1|s|pres|ind|impfv}}
+          ((search-forward "inflection of|ru|")
+           (wd-process-generic-verb-inflection "Russian"))
+          ;; normal definition
+          (t (concat "verb:\n" (wd-process-meanings) "\n")))))))
+
+(defun wd-process-russian-noun (text)
+  (with-temp-buffer
+    (insert text)
+    (goto-char (point-min))
+    (when (re-search-forward (regexp-opt '("===Noun==="
+                                           "===Noun form===")) nil t)
+      (forward-line 1)
+      (wd-cond start
+        ;; {{ru-noun+|пе́ленг}}
+        ((re-search-forward "ru-noun\\+?|")
+         (let ((what
+                (save-excursion
+                  (re-search-forward "|\\(.*?\\)}}" nil t)
+                  (match-string 1))))
+           (format "noun%s:\n%s\n"
+                   (if what (format " (%s)" what) "")
+                   (wd-process-meanings))))
+        ;; # {{inflection of|ru|пробле́ма||gen|p}}
+        ((search-forward "inflection of|ru|")
+         (wd-process-generic-noun-inflection "Russian"))
+        ;; normal definition
+        (t (concat "noun:\n" (wd-process-meanings) "\n"))))))
+
+(defun wd-process-russian-adjective (text) nil)
+
+(defun wd-process-russian-invar (text) nil)
 
 (provide 'wiktionary-translate)
 
