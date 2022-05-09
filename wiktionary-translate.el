@@ -537,18 +537,24 @@ similar to `cond'."
   (when (search-forward "===Noun===" nil t)
     (forward-line 1)
     (wd-cond start
-      ;; plural form # {{plural of|Fall|lang=de}}
+      ;; # {{plural of|Fall|lang=de}}
+      ;; # {{plural of|de|Lehrerin}}
       ((search-forward "plural of|")
-       (wd-process-word (buffer-substring-no-properties start (1- (search-forward "|" nil t)))
-                        "German"
-                        (list :nominal "plural of ")))
-      ;; plural form 2 # Plural form of [[compito]] // not attested yet :D
-      ((search-forward "Plural form of [[")
-       (wd-process-word (buffer-substring-no-properties
-                         start
-                         (- (search-forward "]]" nil t) 2))
-                        "German"
-                        (list :nominal "plural of ")))
+       (let ((word (save-excursion
+                     (if (looking-at-p "de|")
+                         (progn
+                           (forward-char 3)
+                           (re-search-forward "\\(.*?\\)}}")
+                           (match-string 1))
+                       (re-search-forward "\\(.*?\\)|")
+                       (match-string 1)
+                       ))))
+         (wd-process-word word
+                          "German"
+                          (list :nominal "plural of "))))
+      ;; # {{inflection of|de|Fall||nom//acc//gen|p}}
+      ((search-forward "inflection of|de|")
+       (wd-process-generic-noun-inflection "German"))
       ;; feminine form of # {{feminine of|lang=de|Lehrer}}
       ((search-forward "feminine of|lang=de|")
        (let ((info (save-excursion
