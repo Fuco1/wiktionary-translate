@@ -56,6 +56,7 @@
 
 Display translation of word."
   (make-local-variable 'wd-buffer-word)
+  (font-lock-mode 1)
   (set (make-local-variable 'revert-buffer-function)
        (function wd-revert-buffer)))
 
@@ -163,7 +164,48 @@ Display translation of word."
                       (let ((start (match-beginning 0)))
                         (replace-match "(\\1)")
                         (replace-string "|" ", " nil start (point)))))
+    (save-excursion (while (re-search-forward "{{syn|.*?|\\(.*?\\)}}" nil t)
+                      (let ((start (match-beginning 0)))
+                        (replace-match "Synonyms: \\1")
+                        (replace-string "|" ", " nil start (point)))))
     (save-excursion (replace-regexp "{{qualifier|\\(.*?\\)}}" "(Qualifier: \\1)"))
+    (save-excursion (replace-regexp "{{gloss|\\(.*?\\)}}" "(Gloss: \\1)"))
+    (save-excursion
+      (while (re-search-forward "{{uxi|.*?|\\(.*?\\)|\\(.*?\\)}}" nil t)
+        (let ((start (match-beginning 0)))
+          (replace-match "\\1 ― \\2"))))
+    (save-excursion
+      (while (re-search-forward "{{ux|.*?|\\(.*?\\)|" nil t)
+        (let ((indent (current-indentation)))
+          (replace-match "\\1\n")
+          (catch 'done
+            (while (re-search-forward "\\(.*?\\)\\(|\\|}}\\)" nil t)
+              (let ((ms (match-string 2)))
+                (replace-match (format "%s\\1%s"
+                                       (make-string (+ indent 4) ? )
+                                       (if (equal "}}" ms) "" "\n")))
+                (when (equal "}}" ms)
+                  (throw 'done t))))))))
+    (save-excursion
+      (while (re-search-forward "<br/>" nil t)
+        (let ((indent (current-indentation)))
+          (save-excursion
+            (back-to-indentation)
+            (when (looking-at-p "- ")
+              (setq indent (+ indent 2))))
+          (replace-match (format "\n%s" (make-string indent ? ))))))
+    (save-excursion
+      (while (re-search-forward "'''\\(.*?\\)'''" nil t)
+        (let ((start (match-beginning 0))
+              (len (length (match-string 1))))
+          (replace-match "\\1")
+          (put-text-property start (+ start len) 'font-lock-face '(bold font-lock-variable-name-face)))))
+    (save-excursion
+      (while (re-search-forward "{{lb|.*?|\\(.*?\\)}}" nil t)
+        (let ((start (match-beginning 0))
+              (len (length (match-string 1))))
+          (replace-match "(\\1)")
+          (put-text-property start (+ start len 2) 'font-lock-face 'shadow))))
     (buffer-string)))
 
 (defun wd-sanitize-translation (text)
