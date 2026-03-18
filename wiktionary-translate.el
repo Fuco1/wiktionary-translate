@@ -682,11 +682,12 @@ similar to `cond'."
         (wd-cond start
           ;; # {{ru-verb|обсужда́ть|impf|pf=обсуди́ть}}
           ((search-forward "ru-verb|")
-           (-let (((aspect other-aspect other-verb)
+           (-let (((what aspect other-aspect other-verb)
                    (save-excursion
-                     (re-search-forward "|\\(.*?\\)|\\(.*?\\)=\\(.*?\\)}}" nil t)
-                     (list (match-string 1) (match-string 2) (match-string 3)))))
-             (format "verb (%s, %s: %s):\n%s\n"
+                     (re-search-forward "\\(.*?\\)|\\(.*?\\)|\\(.*?\\)=\\(.*?\\)}}" nil t)
+                     (list (match-string 1) (match-string 2) (match-string 3) (match-string 4)))))
+             (format "verb: %s (%s, %s: %s):\n%s\n"
+                     what
                      aspect
                      other-aspect
                      other-verb
